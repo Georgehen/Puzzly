@@ -100,13 +100,13 @@ void uri_entered_cb (GtkWidget* entry, gpointer data) {
   }
 
   // Get the tab (hint: wrapper.h)
-
+	int get_tab = query_tab_id_for_request(entry, data);
 
   // Get the URL (hint: wrapper.h)
-
+	char* get_url = get_entered_uri(entry);
 
   // Hint: now you are ready to handle_the_uri
-
+	handle_uri(get_url, get_tab);
 }
   
 
