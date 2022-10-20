@@ -1,3 +1,10 @@
+/*
+CSCI-4061 Fall 2022 - Project #2
+* Group Member #1: Tor Anderbeck and06339
+* Group Member #2: Elvir Semic semic002
+* Group Member #3: Erik Heen heenx008
+*/
+
 #include "wrapper.h"
 #include "util.h"
 #include <sys/types.h>
@@ -77,6 +84,11 @@ void init_favorites (char *fname) {
 // Return 0 if ok, -1 otherwise
 // Really a util but I want you to do it :-)
 int non_block_pipe (int fd) {
+	int nFlags;
+  if ((nFlags = fcntl(fd, F_GETFL, 0)) < 0)
+    return -1;
+  if ((fcntl(fd, F_SETFL, nFlags | O_NONBLOCK)) < 0)
+    return -1;
   return 0;
 }
 
@@ -87,6 +99,11 @@ int non_block_pipe (int fd) {
 // Checks if tab is bad and url violates constraints; if so, return.
 // Otherwise, send NEW_URI_ENTERED command to the tab on inbound pipe
 void handle_uri (char *uri, int tab_index) {
+	//check url
+
+	//send command to inbound pipe
+	req_t request; //= req_t(NEW_URI_ENTERED, tab_index, uri);
+	write(comm[tab_index].inbound[1], &request, sizeof(req_t));
 }
 
 
@@ -100,7 +117,7 @@ void uri_entered_cb (GtkWidget* entry, gpointer data) {
   }
 
   // Get the tab (hint: wrapper.h)
-	int get_tab = query_tab_id_for_request(entry, data);
+  int get_tab = query_tab_id_for_request(entry, data);
 
   // Get the URL (hint: wrapper.h)
 	char* get_url = get_entered_uri(entry);
@@ -121,23 +138,48 @@ void new_tab_created_cb (GtkButton *button, gpointer data) {
   }
 
   // at tab limit?
-
+	if (get_num_tabs() > MAX_TABS) {
+		alert("Tab limit reached");
+		return;
+	}
 
   // Get a free tab
-
+	int next = get_free_tab();
 
   // Create communication pipes for this tab
-  
+  if ((pipe(comm[next].outbound)) == -1) {
+  		perror("Error piping new tab outbound");
+ 	}
+ 	
+ 	if ((pipe(comm[next].inbound)) == -1) {
+  		perror("Error piping new tab inbound");
+ 	}
 
   // Make the read ends non-blocking 
-  
+  fcntl(comm[next].inbound[0], F_SETFL, fcntl(comm[next].inbound[0], F_GETFL) | O_NONBLOCK);
+  fcntl(comm[next].outbound[0], F_SETFL, fcntl(comm[next].outbound[0], F_GETFL) | O_NONBLOCK);
   
   // fork and create new render tab
   // Note: render has different arguments now: tab_index, both pairs of pipe fd's
   // (inbound then outbound) -- this last argument will be 4 integers "a b c d"
   // Hint: stringify args
+  pid_t pid = fork();
+  if (pid == -1) {
+  	perror("Error forking");
+  }
+  if (pid == 0) {
+  	char tab_index[5];
+  	char pipe_fds[20];
+  	sprintf (tab_index, "%d", next);
+		sprintf (pipe_fds, "%d %d %d %d", comm[next].inbound[0], comm[next].inbound[1], comm[next].outbound[0], comm[next].outbound[1]);
+  	execl("./render", "render", tab_index, pipe_fds, (char *) NULL);
+    perror("Error rendering new tab");
+    exit(1);
+ 	 }
 
   // Controller parent just does some TABS bookkeeping
+  
+  //increment tabs
 }
 
 // This is called when a favorite is selected for rendering in a tab
@@ -160,8 +202,10 @@ void menu_item_selected_cb (GtkWidget *menu_item, gpointer data) {
   sprintf(uri, "https://%s", basic_uri);
 
   // Get the tab (hint: wrapper.h)
-
+	int get_tab = query_tab_id_for_request(menu_item, data);
+	
   // Hint: now you are ready to handle_the_uri
+  handle_uri (uri, get_tab);
 
   return;
 }
@@ -194,7 +238,7 @@ int run_control() {
     // Loop across all pipes from VALID tabs -- starting from 0
     for (i=0; i<MAX_TABS; i++) {
       if (TABS[i].free) continue;
-      nRead = read(comm[i].outbound[0], &req, sizeof(req_t));
+      //nRead = read(comm[i].outbound[0], &req, sizeof(req_t));
 
       // Check that nRead returned something before handling cases
 
@@ -223,8 +267,18 @@ int main(int argc, char **argv)
 
 
   // Fork controller
+  pid_t pid = fork();
+  if (pid == -1) {
+  	perror("Error forking");
+  }
+  if (pid == 0) {
   // Child creates a pipe for itself comm[0]
+  	if ((pipe(comm[0].outbound)) == -1) {
+  		perror("Error piping");
+ 	 }
   // then calls run_control ()
+  	run_control();
+  }
   // Parent waits ...
-
+	wait(NULL);
 }
