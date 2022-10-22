@@ -41,12 +41,24 @@ tab_list TABS[MAX_TABS];
 
 // return total number of tabs
 int get_num_tabs () {
-  return 1;
+	int num = 0;
+	for (int i = 0; i < MAX_TABS; i++) {
+		if(TABS[i].free == 0) {
+			num++;
+		}
+	}
+  return num;
 }
 
 // get next free tab index
 int get_free_tab () {
-  return 1;
+	for (int i = 0; i < MAX_TABS; i++) {
+		if(TABS[i].free == 1) {
+			TABS[i].free = 0;
+			return i;
+		}
+	}
+  return -1;
 }
 
 // init TABS data structure
@@ -55,7 +67,7 @@ void init_tabs () {
 
   for (i=1; i<MAX_TABS; i++)
     TABS[i].free = 1;
-  TABS[0].free = 0;
+  	TABS[0].free = 0;
 }
 
 /***********************************/
@@ -100,9 +112,17 @@ int non_block_pipe (int fd) {
 // Otherwise, send NEW_URI_ENTERED command to the tab on inbound pipe
 void handle_uri (char *uri, int tab_index) {
 	//check url
+	printf("URL selected is %s\n", uri);
+	if(bad_format(uri) == 1) {
+		alert("BAD FORMAT");
+		return;
+	}
 
 	//send command to inbound pipe
-	req_t request; //= req_t(NEW_URI_ENTERED, tab_index, uri);
+	req_t request; // req_t(NEW_URI_ENTERED, tab_index, uri);
+	request.type = NEW_URI_ENTERED;
+	request.tab_index = tab_index;
+	request.uri[MAX_URL] = *uri;
 	write(comm[tab_index].inbound[1], &request, sizeof(req_t));
 }
 
@@ -156,8 +176,10 @@ void new_tab_created_cb (GtkButton *button, gpointer data) {
  	}
 
   // Make the read ends non-blocking 
-  fcntl(comm[next].inbound[0], F_SETFL, fcntl(comm[next].inbound[0], F_GETFL) | O_NONBLOCK);
-  fcntl(comm[next].outbound[0], F_SETFL, fcntl(comm[next].outbound[0], F_GETFL) | O_NONBLOCK);
+  //fcntl(comm[next].inbound[0], F_SETFL, fcntl(comm[next].inbound[0], F_GETFL) | O_NONBLOCK);
+  non_block_pipe(comm[next].inbound[0]);
+  //fcntl(comm[next].outbound[0], F_SETFL, fcntl(comm[next].outbound[0], F_GETFL) | O_NONBLOCK);
+  non_block_pipe(comm[next].outbound[0]);
   
   // fork and create new render tab
   // Note: render has different arguments now: tab_index, both pairs of pipe fd's
@@ -178,8 +200,6 @@ void new_tab_created_cb (GtkButton *button, gpointer data) {
  	 }
 
   // Controller parent just does some TABS bookkeeping
-  
-  //increment tabs
 }
 
 // This is called when a favorite is selected for rendering in a tab
