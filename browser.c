@@ -122,7 +122,7 @@ void handle_uri (char *uri, int tab_index) {
 	req_t request; // req_t(NEW_URI_ENTERED, tab_index, uri);
 	request.type = NEW_URI_ENTERED;
 	request.tab_index = tab_index;
-	request.uri[MAX_URL] = *uri;
+	strcpy(request.uri, uri);
 	write(comm[tab_index].inbound[1], &request, sizeof(req_t));
 }
 
