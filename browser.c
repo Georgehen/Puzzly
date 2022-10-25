@@ -74,9 +74,26 @@ void init_tabs () {
 /* Favorite manipulation functions */
 /***********************************/
 
+int get_num_favorites () {
+	for (int i = 0; i < MAX_FAV; i++) {
+		if(strcmp(&favorites[i][0], "")) {
+			num_fav++;
+		}
+	}
+  return num_fav;
+}
+
 // return 0 if favorite is ok, -1 otherwise
 // both max limit, already a favorite (Hint: see util.h) return -1
 int fav_ok (char *uri) {
+	if (on_favorites(uri) == 1) {
+		alert("FAVORITE EXISTS");
+		return -1;
+	}
+	else if (get_num_favorites() > MAX_FAV) {
+		alert("EXCEEDED MAXIMUM FAVORITES");
+		return -1;
+	}
   return 0;
 }
 
@@ -84,12 +101,30 @@ int fav_ok (char *uri) {
 // Add uri to favorites file and update favorites array with the new favorite
 void update_favorites_file (char *uri) {
   // Add uri to favorites file
-
+	FILE *fd = fopen(".favorites", "a");
+	if (fd == NULL) {
+		perror("Error opening favorites file\n");
+		exit(-1);
+	}
+	fwrite(uri, MAX_URL, 1, fd);
+	fclose(fd);
   // Update favorites array with the new favorite
+  strcpy(&favorites[get_num_favorites()][0], uri);
 }
 
 // Set up favorites array
 void init_favorites (char *fname) {
+	FILE *fd = fopen(fname, "r");
+		  if (fd == NULL) {
+		      perror("Error opening favorites file\n");
+		      exit(-1);
+		  }
+	for (int i = 0; i < MAX_FAV;i++) {
+		fscanf(fd, "%s", &favorites[i][0]);
+   }
+	fclose(fd);
+	//update num_fav so favorites appear in menu
+	get_num_favorites();
 }
 
 // Make fd non-blocking just as in class!
@@ -276,15 +311,15 @@ int run_control() {
 
 int main(int argc, char **argv)
 {
-
   if (argc != 1) {
     fprintf (stderr, "browser <no_args>\n");
     exit (0);
   }
-
   init_tabs ();
   // init blacklist (see util.h), and favorites (write this, see above)
-
+	init_blacklist(".blacklist");
+	init_favorites(".favorites");
+	
 
   // Fork controller
   pid_t pid = fork();
