@@ -1,4 +1,4 @@
-n# Lichess Tactics Trainer
+Lichess Tactics Trainer
 
 ## Overview
 This web application allows users to improve their chess skills by practicing tactics generated from their own games played on Lichess. Users import their game data via the Lichess API or get the games from the database if they have used the site before, and work through puzzles specifically tailored to their game blunders.
